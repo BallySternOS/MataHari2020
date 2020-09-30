@@ -36,7 +36,7 @@ wavTrigger wTrig;             // Our WAV Trigger object
 
 #define MATAHARI2020_MAJOR_VERSION  2020
 #define MATAHARI2020_MINOR_VERSION  1
-#define DEBUG_MESSAGES  1
+#define DEBUG_MESSAGES  0
 
 
 // This constant defines how much gap is inserted between chime hits
@@ -202,6 +202,7 @@ byte ALaneState[4];
 byte BLaneState[4];
 unsigned long LastAHit = 0;
 unsigned long LastBHit = 0;
+unsigned long LastPopBumperHit = 0;
 byte LeftOutlane;
 byte RightOutlane;
 boolean SamePlayerShootsAgain = false;
@@ -417,7 +418,7 @@ void ShowBonusLights(byte mode, byte prospectiveMode, byte bonus) {
         lightPhase = ((CurrentTime-GameModeStartTime)/100)%9;
         for (byte count=0; count<9; count++) BSOS_SetLampState(BONUS_1+count, ((count==lightPhase)||(count==(lightPhase-1)))?1:0, (count==lightPhase)?0:1);
       } else if (prospectiveMode==GAME_MODE_SLINGS_AND_LANES) {
-        lightPhase = ((CurrentTime-GameModeStartTime)/100)%9;
+        lightPhase = 8-((CurrentTime-GameModeStartTime)/100)%9;
         for (byte count=0; count<9; count++) BSOS_SetLampState(BONUS_1+count, ((count==lightPhase)||(count==(lightPhase+1)))?1:0, (count==lightPhase)?0:1);
       }
       BSOS_SetLampState(BONUS_10, 0);
@@ -428,7 +429,9 @@ void ShowBonusLights(byte mode, byte prospectiveMode, byte bonus) {
   } else if (mode>=GAME_MODE_AB_LANES && mode<=GAME_MODE_SLINGS_AND_LANES) {
     // Show time remaining in mode
     byte displayPhase = ((CurrentTime-GameModeStartTime)/2000)%2;
-    if (displayPhase==0) {
+
+    // For the moment, always show time countdown during a mode    
+    if (displayPhase==0 || 1) {
       byte scaledTimeLeft = 0;
       if (GameModeEndTime>CurrentTime) {
         scaledTimeLeft = 9 - ((CurrentTime-GameModeStartTime)*9)/(GameModeEndTime-GameModeStartTime);
@@ -529,7 +532,31 @@ void ShowSaucerLamps(byte mode) {
   }
 }
 
-void ShowABLamps(byte mode, byte aStatus, byte bStatus) {
+
+void ShowPopBumperLamps(byte mode, byte prospectiveMode, byte popStatus, unsigned long lastTimePopBumperHit) {
+  if (mode==GAME_MODE_SELECT_MODE) {
+    byte lightPhase = ((CurrentTime-GameModeStartTime)/200)%2;
+    if (prospectiveMode==GAME_MODE_POP_BUMPERS) {
+      BSOS_SetLampState(POP_BUMPER_1, lightPhase%2);
+      BSOS_SetLampState(POP_BUMPER_2, (lightPhase%2)?0:1);
+    }
+  } else if (mode==GAME_MODE_POP_BUMPERS) {
+    if ((CurrentTime-lastTimePopBumperHit)<1000) {
+      BSOS_SetLampState(POP_BUMPER_1, 1, 0, 100);
+      BSOS_SetLampState(POP_BUMPER_2, 1, 0, 100);
+    } else {
+      byte lightPhase = ((CurrentTime-GameModeStartTime)/400)%2;
+      BSOS_SetLampState(POP_BUMPER_1, 1, lightPhase);
+      BSOS_SetLampState(POP_BUMPER_2, 1, lightPhase);
+    }
+  } else {
+    if (popStatus) {
+      
+    }
+  }
+}
+
+void ShowABLamps(byte mode, byte prospectiveMode, byte aStatus, byte bStatus) {
   if (mode==GAME_MODE_SKILL_SHOT) {
     byte lightPhase = ((CurrentTime-GameModeStartTime)/250)%24;
     if (lightPhase<8) {
@@ -553,6 +580,13 @@ void ShowABLamps(byte mode, byte aStatus, byte bStatus) {
       BSOS_SetLampState(A_LANE, 0);
       BSOS_SetLampState(B_LANE, 0);
     }
+  } else if (mode==GAME_MODE_SELECT_MODE) {
+    if (prospectiveMode==GAME_MODE_AB_LANES) {
+      byte lightPhase = ((CurrentTime-GameModeStartTime)/250)%2;
+      BSOS_SetLampState(A_LANE, lightPhase%2);
+      BSOS_SetLampState(B_LANE, (lightPhase%2)?0:1);
+    }
+  } else if (mode==GAME_MODE_AB_LANES) {
   } else {
     BSOS_SetLampState(A_LANE, (aStatus>0)?1:0, (aStatus==1)?1:0, (aStatus>1)?1000/aStatus:0);
     BSOS_SetLampState(B_LANE, (bStatus>0)?1:0, (bStatus==1)?1:0, (bStatus>1)?1000/bStatus:0);
@@ -562,7 +596,7 @@ void ShowABLamps(byte mode, byte aStatus, byte bStatus) {
 byte ProspectiveModeShown = 0;
 unsigned long LastABReportTime = 0;
 
-void ShowABRewardLamps(byte mode, byte prospectiveMode, byte ABProgress, byte ABWillScore) {
+void ShowABRewardLamps(byte mode, byte prospectiveMode, byte ABWillScore) {
 
   byte modeShown = mode;
   
@@ -594,13 +628,6 @@ void ShowABRewardLamps(byte mode, byte prospectiveMode, byte ABProgress, byte AB
       } else {
         for (int count=0; count<6; count++) BSOS_SetLampState(AB_SCORES_1000+count, 0);
         BSOS_SetLampState(AB_SCORES_SPECIAL, (phase%2)?0:1);
-      }
-    } else if (modeShown==GAME_MODE_AB_LANES) {
-      // Show the progress towards the AB goal
-      byte progress = (5*ABProgress)/NUM_ORBITS_IN_AB_GOAL;
-      if (progress>5) progress = 5;
-      for (int count=0; count<7; count++) {
-        BSOS_SetLampState(AB_SCORES_1000+count, (count<progress)?1:0, 0, 200);  
       }
     } else {
       // Show the current state of the AB reward
@@ -1310,6 +1337,7 @@ int InitGamePlay() {
   RightOutlane = 0;
   LastBHit = 0; 
   LastAHit = 0;
+  LastPopBumperHit = 0;
 
   if (BSOS_ReadSingleSwitchState(SW_SAUCER)) {
     BSOS_PushToSolenoidStack(SOL_SAUCER, 5, true);
@@ -1490,13 +1518,14 @@ int NormalGamePlay() {
 
   // Show all the appropriate lamps
 
-  ShowABLamps(GameMode, ALaneState[CurrentPlayer], BLaneState[CurrentPlayer]);
+  ShowABLamps(GameMode, ProspectiveGameMode, ALaneState[CurrentPlayer], BLaneState[CurrentPlayer]);
   ShowSamePlayerLamps(SamePlayerShootsAgain);
   ShowBonusLights(GameMode, ProspectiveGameMode, Bonus);
   ShowBonusXLights(GameMode, ProspectiveGameMode, BonusX, LastTimeSlingOrLaneHit);
   ShowOutlanes(GameMode, ProspectiveGameMode, GetLeftOutlane(CurrentPlayer), GetRightOutlane(CurrentPlayer), LastTimeSlingOrLaneHit);
   ShowSaucerLamps(GameMode);
-  ShowABRewardLamps(GameMode, ProspectiveGameMode, 0, 0);
+  ShowABRewardLamps(GameMode, ProspectiveGameMode, 0);
+  ShowPopBumperLamps(GameMode, ProspectiveGameMode, 0, LastPopBumperHit);
 
   // Check to see if ball is in the outhole
   if (BSOS_ReadSingleSwitchState(SW_OUTHOLE)) {
@@ -1864,30 +1893,18 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         break;
         case SW_LEFT_A_LANE:
           LastAHit = CurrentTime;
-          if (DEBUG_MESSAGES) {
-            Serial.write("AL Hit\n");
-          }
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
         break;
         case SW_TOP_A_LANE:
           LastAHit = CurrentTime;
-          if (DEBUG_MESSAGES) {
-            Serial.write("AT Hit\n");
-          }
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
         break;
         case SW_RIGHT_B_LANE:
           LastBHit = CurrentTime;
-          if (DEBUG_MESSAGES) {
-            Serial.write("BR Hit\n");
-          }
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
         break;
         case SW_TOP_B_LANE:
           LastBHit = CurrentTime;
-          if (DEBUG_MESSAGES) {
-            Serial.write("BT Hit\n");
-          }
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
         break;
         case SW_LEFT_OUTLANE:
@@ -1913,7 +1930,10 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         case SW_OUTHOLE:
         break;
         case SW_SAUCER:
-          if (GameMode==GAME_MODE_SELECT_MODE) {
+          if (GameMode==GAME_MODE_SKILL_SHOT) {
+            PlaySoundEffect(SOUND_EFFECT_SKILL_SHOT);
+            BSOS_PushToTimedSolenoidStack(SOL_SAUCER, 5, 1500); 
+          } else if (GameMode==GAME_MODE_SELECT_MODE) {
             GameMode = ProspectiveGameMode;
             if (GameMode<GAME_MODE_AB_LANES || GameMode>GAME_MODE_SLINGS_AND_LANES) GameMode = GAME_MODE_AB_LANES;
             GameModeStartTime = CurrentTime;
@@ -1923,8 +1943,11 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
               sprintf(buf, "Saucer hit mode=%d\n\r", GameMode);
               Serial.write(buf);
             }
+            BSOS_PushToTimedSolenoidStack(SOL_SAUCER, 5, 1500); 
+          } else {
+            BSOS_PushToTimedSolenoidStack(SOL_SAUCER, 5, 100); 
           }
-          BSOS_PushToTimedSolenoidStack(SOL_SAUCER, 5, 100); 
+          if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
         break;
         case SW_RIGHT_DROP_TARGET_1:
         case SW_RIGHT_DROP_TARGET_2:
@@ -1946,6 +1969,7 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         case SW_BUMPER_2:
         case SW_BUMPER_3:
         case SW_BUMPER_4:
+          LastPopBumperHit = CurrentTime;
           PopBumperPhase += 1;
           if ((PopBumperPhase%4)==0) {
             ProspectiveGameMode += 1;
