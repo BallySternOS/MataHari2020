@@ -18,6 +18,7 @@
     See <https://www.gnu.org/licenses/>.
 */
 
+#include "BSOS_Config.h"
 #include "BallySternOS.h"
 #include "MataHari2020.h"
 #include "SelfTestAndAudit.h"
