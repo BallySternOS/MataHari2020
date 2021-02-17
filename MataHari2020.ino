@@ -37,7 +37,7 @@ wavTrigger wTrig;             // Our WAV Trigger object
 
 #define MATAHARI2020_MAJOR_VERSION  2020
 #define MATAHARI2020_MINOR_VERSION  1
-#define DEBUG_MESSAGES  0
+#define DEBUG_MESSAGES  1
 
 
 // This constant defines how much gap is inserted between chime hits
@@ -959,6 +959,13 @@ int RunSelfTest(int curState, boolean curStateChanged) {
   int returnState = curState;
   CurrentNumPlayers = 0;
 
+  if (curStateChanged) {
+    if (DEBUG_MESSAGES) {
+      Serial.write("State changed in Self Test Mode\n\r");
+    }
+  }
+
+  
 #if defined(USE_WAV_TRIGGER) || defined(USE_WAV_TRIGGER_1p3)
   if (curStateChanged) {
     // Send a stop-all command and reset the sample-rate offset, in case we have
@@ -985,6 +992,7 @@ int RunSelfTest(int curState, boolean curStateChanged) {
     }
 
     if (curStateChanged) {
+
       for (int count = 0; count < 4; count++) {
         BSOS_SetDisplay(count, 0);
         BSOS_SetDisplayBlank(count, 0x00);
@@ -1569,9 +1577,6 @@ int NormalGamePlay() {
         GameMode = GAME_MODE_QUALIFY_SELECT;
         GameModeStartTime = CurrentTime;
         GameModeEndTime = 0;
-        if (DEBUG_MESSAGES) {
-          Serial.write("Exit skill shot - Changing to Qualify Select\n\r");
-        }
       }
     break;
     case GAME_MODE_QUALIFY_SELECT:
@@ -1580,9 +1585,6 @@ int NormalGamePlay() {
         GameModeStartTime = CurrentTime;
         GameModeEndTime = 0;
         GameMode = GAME_MODE_SELECT_MODE;
-        if (DEBUG_MESSAGES) {
-          Serial.write("Exit qualify - entering into select mode\n\r");
-        }
       }
     break;
     case GAME_MODE_SELECT_MODE:
@@ -1590,9 +1592,6 @@ int NormalGamePlay() {
         // This mode doesn't have an end
         GameModeEndTime = CurrentTime;
         ProspectiveGameMode = GetNextUnfinishedMode(GAME_MODE_AB_LANES-1);
-        if (DEBUG_MESSAGES) {
-          Serial.write("In select mode - setting prospective mode to GAME_MODE_AB_LANES\n");
-        }
       }
     break;
     case GAME_MODE_AB_LANES:
@@ -2095,6 +2094,13 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
 //  byte bonusAtTop = Bonus;
   unsigned long scoreAtTop = CurrentScores[CurrentPlayer];
 
+  if (curStateChanged) {
+    if (DEBUG_MESSAGES) {
+      Serial.write("State changed in Game Play Mode\n\r");
+    }
+  }
+
+
   // Very first time into gameplay loop
   if (curState == MACHINE_STATE_INIT_GAMEPLAY) {
     returnState = InitGamePlay();
@@ -2237,11 +2243,6 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
             if (GameMode<GAME_MODE_AB_LANES || GameMode>GAME_MODE_SLINGS_AND_LANES) GameMode = GAME_MODE_AB_LANES;
             GameModeStartTime = CurrentTime;
             GameModeEndTime = 0;
-            if (DEBUG_MESSAGES) {
-              char buf[128];
-              sprintf(buf, "Saucer hit mode=%d\n\r", GameMode);
-              Serial.write(buf);
-            }
             BSOS_PushToTimedSolenoidStack(SOL_SAUCER, 5, CurrentTime + 1500); 
           } else if (GameMode==GAME_MODE_RIGHT_DROP_TARGETS) {
             if (CheckIfRightDropTargetsDown()) {
@@ -2300,11 +2301,6 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
           PopBumperPhase += 1;
           if ((PopBumperPhase%4)==0) {
             ProspectiveGameMode = GetNextUnfinishedMode(ProspectiveGameMode);
-            if (DEBUG_MESSAGES) {
-              char buf[128];
-              sprintf(buf, "Prospective mode changed to=%d\n\r", ProspectiveGameMode);
-              Serial.write(buf);
-            }
             GameModeStartTime = CurrentTime;
           }
           if (GameMode != GAME_MODE_WIZARD) {
