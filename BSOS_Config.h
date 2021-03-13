@@ -26,15 +26,49 @@
 
 ***/
 
-//#define BALLY_STERN_OS_USE_DIP_SWITCHES 
+// Hardware Rev 1 generally uses an Arduino Nano & (option) 74125
+// Hardware Rev 2 uses an Arduino Nano, a 74155, and a 74240
+#define BALLY_STERN_OS_HARDWARE_REV   1
+
+
+#define BALLY_STERN_OS_USE_DIP_SWITCHES 
 //#define BALLY_STERN_OS_USE_SQUAWK_AND_TALK
 //#define BALLY_STERN_OS_USE_SB100
 //#define BALLY_STERN_OS_USE_AUX_LAMPS
 //#define BALLY_STERN_OS_USE_7_DIGIT_DISPLAYS
 //#define BALLY_STERN_OS_DIMMABLE_DISPLAYS
+#define BALLY_STERN_OS_SOFTWARE_DISPLAY_INTERRUPT
+//#define BALLY_STERN_OS_ADJUSTABLE_DISPLAY_INTERRUPT
 
 // Fast boards might need a slower lamp strobe
 //#define BSOS_SLOW_DOWN_LAMP_STROBE
+
+
+// Depending on the number of digits, the BALLY_STERN_OS_SOFTWARE_DISPLAY_INTERRUPT_INTERVAL
+// can be adjusted in order to change the refresh rate of the displays.
+// The original -17 / MPU-100 boards ran at 320 Hz 
+// The Alltek runs the displays at 440 Hz (probably so 7-digit displays won't flicker)
+// The value below is calculated with this formula:
+//       Value = (interval in ms) * (16*10^6) / (1*1024) - 1 
+//          (must be <65536)
+// Choose one of these values (or do whatever)
+//  Value         Frequency 
+//  48            318.8 Hz
+//  47            325.5 Hz
+//  46            332.4 Hz increments   (I use this for 6-digits displays)
+//  45            339.6 Hz
+//  40            381 Hz
+//  35            434 Hz     (This would probably be good for 7-digit displays)
+//  34            446.4 Hz      
+#define BALLY_STERN_OS_SOFTWARE_DISPLAY_INTERRUPT_INTERVAL  48  
+
+#ifdef BALLY_STERN_OS_USE_6_DIGIT_CREDIT_DISPLAY_WITH_7_DIGIT_DISPLAYS
+#define BALLY_STERN_OS_MASK_SHIFT_1            0x60
+#define BALLY_STERN_OS_MASK_SHIFT_2            0x0C
+#else
+#define BALLY_STERN_OS_MASK_SHIFT_1            0x30
+#define BALLY_STERN_OS_MASK_SHIFT_2            0x06
+#endif
 
 #ifdef BALLY_STERN_OS_USE_7_DIGIT_DISPLAYS
 #define BALLY_STERN_OS_MAX_DISPLAY_SCORE  9999999
