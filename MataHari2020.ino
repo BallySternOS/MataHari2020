@@ -120,34 +120,39 @@ boolean MachineStateChanged = true;
 #define EEPROM_WIZARD_REWARD_BYTE       152
 
 #define SOUND_EFFECT_NONE               0
-#define SOUND_EFFECT_BONUS_COUNT        2
-#define SOUND_EFFECT_INLANE_UNLIT       3
-#define SOUND_EFFECT_OUTLANE_UNLIT      4
-#define SOUND_EFFECT_INLANE_LIT         5
-#define SOUND_EFFECT_OUTLANE_LIT        6
-#define SOUND_EFFECT_BUMPER_HIT         7
-#define SOUND_EFFECT_DROP_TARGET        9
-#define SOUND_EFFECT_ADD_CREDIT         10
-#define SOUND_EFFECT_ADD_PLAYER         11
-#define SOUND_EFFECT_PLAYER_UP          15
+#define SOUND_EFFECT_BONUS_COUNTDOWN_1K     1
+#define SOUND_EFFECT_BONUS_COUNTDOWN_2K     2
+#define SOUND_EFFECT_BONUS_COUNTDOWN_3K     3
+#define SOUND_EFFECT_BONUS_COUNTDOWN_5K     5
+#define SOUND_EFFECT_OUTLANE_UNLIT      10
+#define SOUND_EFFECT_OUTLANE_LIT        11
+#define SOUND_EFFECT_INLANE             12
+#define SOUND_EFFECT_BUMPER             13
+#define SOUND_EFFECT_BUMPER_LIT         14
+#define SOUND_EFFECT_DROP_TARGET        15
+#define SOUND_EFFECT_ADD_CREDIT         16
+#define SOUND_EFFECT_ADD_PLAYER         17
+#define SOUND_EFFECT_PLAYER_UP          18
 #define SOUND_EFFECT_BALL_OVER          19
 #define SOUND_EFFECT_GAME_OVER          20
-#define SOUND_EFFECT_2X_BONUS_COUNT     21
-#define SOUND_EFFECT_3X_BONUS_COUNT     22
-#define SOUND_EFFECT_EXTRA_BALL         23
-#define SOUND_EFFECT_MACHINE_START      24
-#define SOUND_EFFECT_SKILL_SHOT         25
-#define SOUND_EFFECT_TILT_WARNING       28
-#define SOUND_EFFECT_WIZARD_SCORE       29
-#define SOUND_EFFECT_MATCH_SPIN         30
-#define SOUND_EFFECT_WIZARD_TIMER       31
-#define SOUND_EFFECT_SLING_SHOT         34
-#define SOUND_EFFECT_10PT_SWITCH        36
-#define SOUND_EFFECT_BACKGROUND_1       37
-#define SOUND_EFFECT_BACKGROUND_2       38
-#define SOUND_EFFECT_BACKGROUND_3       39
-#define SOUND_EFFECT_BACKGROUND_WIZ     40
-#include "MataHari2020Chimes.h"
+#define SOUND_EFFECT_EXTRA_BALL         21
+#define SOUND_EFFECT_MACHINE_START      22
+#define SOUND_EFFECT_SKILL_SHOT         23
+#define SOUND_EFFECT_TILT_WARNING       24
+#define SOUND_EFFECT_WIZARD_SCORE       25
+#define SOUND_EFFECT_MATCH_SPIN         26
+#define SOUND_EFFECT_WIZARD_TIMER       27
+#define SOUND_EFFECT_SLING_SHOT         28
+#define SOUND_EFFECT_10PT_SWITCH        29
+#define SOUND_EFFECT_BUMPER_10          30
+#define SOUND_EFFECT_AB_LANE_1          31
+#define SOUND_EFFECT_AB_LANE_2          32
+#define SOUND_EFFECT_AB_LANE_3          33
+#define SOUND_EFFECT_BACKGROUND_1       90
+#define SOUND_EFFECT_BACKGROUND_2       91
+#define SOUND_EFFECT_BACKGROUND_3       92
+#define SOUND_EFFECT_BACKGROUND_WIZ     93
+//#include "MataHari2020Chimes.h"
 
 #define SKILL_SHOT_DURATION 15
 #define MAX_DISPLAY_BONUS     69
@@ -202,9 +207,11 @@ byte dipBank0, dipBank1, dipBank2, dipBank3;
 byte CurrentPlayer = 0;
 byte CurrentBallInPlay = 1;
 byte CurrentNumPlayers = 0;
-unsigned long CurrentScores[4];
 byte Bonus;
 byte BonusX;
+
+unsigned long CurrentScores[4];
+
 byte ABLaneState;
 byte ModeCompletionStatus[4];
 byte PopBumperGoal[4];
@@ -212,35 +219,39 @@ byte ABLaneGoal[4];
 byte SlingsAndLanesGoal[4];
 byte LeftTargetGoal[4];
 byte RightTargetGoal[4];
-unsigned long LastAHit = 0;
-unsigned long LastBHit = 0;
-unsigned long LastPopBumperHit = 0;
-boolean DropTargetsScoreSpecial = false;
+
 byte LeftOutlane;
 byte RightOutlane;
-boolean SamePlayerShootsAgain = false;
 
-boolean BallSaveUsed = false;
-unsigned long BallFirstSwitchHitTime = 0;
-unsigned long BallTimeInTrough = 0;
-unsigned long WizardModeStartTime = 0;
-
-boolean CurrentlyShowingBallSave = false;
 byte PlayfieldValidation = 0;
 byte MaxTiltWarnings = 2;
 byte NumTiltWarnings = 0;
-unsigned long LastTiltWarningTime = 0;
 
-boolean SkillShotRunning = false;
 byte SkillShotAwardsLevel = 0;
-
 byte GameMode = GAME_MODE_SKILL_SHOT;
 byte ProspectiveGameMode = GAME_MODE_AB_LANES;
 byte PopBumperPhase = 0;
+byte LeftDropTargetStatus;
+byte RightDropTargetStatus;
+
+boolean CurrentlyShowingBallSave = false;
+boolean SkillShotRunning = false;
+boolean SamePlayerShootsAgain = false;
+boolean BallSaveUsed = false;
+boolean DropTargetsScoreSpecial = false;
+
+
+unsigned long BallFirstSwitchHitTime = 0;
+unsigned long BallTimeInTrough = 0;
+unsigned long LastTiltWarningTime = 0;
 unsigned long GameModeStartTime = 0;
-// GameModeEndTime is zero until the mode is started
 unsigned long GameModeEndTime = 0;
 unsigned long LastModeShotTime = 0;
+unsigned long ResetLeftDropTargetStatusTime;
+unsigned long ResetRightDropTargetStatusTime;
+unsigned long LastAHit = 0;
+unsigned long LastBHit = 0;
+unsigned long LastPopBumperHit = 0;
 
 
 void GetDIPSwitches() {
@@ -997,7 +1008,7 @@ int RunSelfTest(int curState, boolean curStateChanged) {
         BSOS_SetDisplay(count, 0);
         BSOS_SetDisplayBlank(count, 0x00);
       }
-      BSOS_SetDisplayCredits(abs(curState) - 4.);
+      BSOS_SetDisplayCredits(MACHINE_STATE_TEST_SOUNDS - curState);
       BSOS_SetDisplayBallInPlay(0, false);
       CurrentAdjustmentByte = NULL;
       CurrentAdjustmentUL = NULL;
@@ -1249,6 +1260,134 @@ void PlaySoundEffect(byte soundEffectNum) {
   // If the user selects electronic sounds, don't do chimes
   if (MusicLevel > 3) return;
 
+
+  unsigned long count;
+
+  switch (soundEffectNum) {
+    case SOUND_EFFECT_ADD_PLAYER:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime, true);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+200, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+400, true);
+      }    
+    break;
+    case SOUND_EFFECT_BALL_OVER:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+166, true);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+250, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+500, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+750, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+1000, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+1166, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+1250, true);
+      }
+    break;
+    case SOUND_EFFECT_GAME_OVER:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+166, true);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+250, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+500, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+666, true);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+750, true);
+      }
+    break;
+    case SOUND_EFFECT_MACHINE_START:
+    case SOUND_EFFECT_PLAYER_UP:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 1, CurrentTime+500, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+600, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+900, true);
+    break;
+    case SOUND_EFFECT_ADD_CREDIT:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+75, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+150, true);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+225, true);
+    break;
+    case SOUND_EFFECT_BONUS_COUNTDOWN_1K:
+    case SOUND_EFFECT_MATCH_SPIN:
+    case SOUND_EFFECT_10PT_SWITCH:
+    case SOUND_EFFECT_SLING_SHOT:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime);
+    break;
+    case SOUND_EFFECT_BONUS_COUNTDOWN_2K:
+    case SOUND_EFFECT_BONUS_COUNTDOWN_3K:
+    case SOUND_EFFECT_BUMPER:
+    case SOUND_EFFECT_OUTLANE_UNLIT:
+    case SOUND_EFFECT_DROP_TARGET:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime);
+    break;
+    case SOUND_EFFECT_BUMPER_LIT:
+    case SOUND_EFFECT_BONUS_COUNTDOWN_5K:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime);
+    break;
+    case SOUND_EFFECT_OUTLANE_LIT:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+100);
+      if (MusicLevel>1) {
+        for (count=0; count<4; count++) { 
+          BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+200+count*200);
+          BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+300+count*200);
+        }
+      }
+    break;
+    case SOUND_EFFECT_AB_LANE_1:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+200);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+300);
+      }
+    break;
+    case SOUND_EFFECT_AB_LANE_2:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+250);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+250);
+      }
+    break;
+    case SOUND_EFFECT_AB_LANE_3:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+200);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+300);
+      }
+    break;
+    case SOUND_EFFECT_INLANE:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+100);
+    break;
+    case SOUND_EFFECT_EXTRA_BALL:
+    case SOUND_EFFECT_SKILL_SHOT:
+      for (count=0; count<2; count++) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime + count*150);
+        if (MusicLevel>1) {
+          BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+25 + count*150);
+          BSOS_PushToTimedSolenoidStack(SOL_CHIME_1000, 3, CurrentTime+50 + count*150);
+        }
+      }
+    break;
+    case SOUND_EFFECT_TILT_WARNING:
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime);
+      BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+100);
+      if (MusicLevel>1) {
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_100, 3, CurrentTime+200);
+        BSOS_PushToTimedSolenoidStack(SOL_CHIME_10, 3, CurrentTime+300);
+      }
+    break;
+  }    
+    
+
+
+/*
+ *  This version of chimes (currently commented out) 
+ *  moves the chime callouts from "storage space" to "dynamic memory"
+ *  in order to free up space for more code. 
+ *  I'm not using it for now because it's harder to setup/debug.
+ *  
   // Music level 3 = allow melodies to overlap
   if (CurrentTime > NextSoundEffectTime || MusicLevel == 3) {
     NextSoundEffectTime = CurrentTime;
@@ -1287,6 +1426,7 @@ void PlaySoundEffect(byte soundEffectNum) {
       }
     }
   }
+*/  
 
 #endif
 
@@ -1516,6 +1656,7 @@ int InitNewBall(bool curStateChanged, byte playerNum, int ballNum) {
     BSOS_SetLampState(LAST_TARGET_SCORES_SPECIAL, 0);
     
     // Start appropriate mode music
+    PlaySoundEffect(SOUND_EFFECT_PLAYER_UP);
 
     if (BSOS_ReadSingleSwitchState(SW_OUTHOLE)) {
       BSOS_PushToTimedSolenoidStack(SOL_OUTHOLE, 4, CurrentTime + 100);
@@ -1524,6 +1665,8 @@ int InitNewBall(bool curStateChanged, byte playerNum, int ballNum) {
     // Reset drop targets
     BSOS_PushToTimedSolenoidStack(SOL_LEFT_DROP_TARGETS, 15, CurrentTime + 20);
     BSOS_PushToTimedSolenoidStack(SOL_RIGHT_DROP_TARGETS, 15, CurrentTime + 150);
+    ResetLeftDropTargetStatusTime = CurrentTime + 250;
+    ResetRightDropTargetStatusTime = CurrentTime + 250;
   }
 
   // We should only consider the ball initialized when
@@ -1548,12 +1691,8 @@ boolean PlayerUpLightBlinking = false;
 unsigned long LastTimeSlingOrLaneHit = 0;
 
 // This function manages all timers, flags, and lights
-int NormalGamePlay() {
+int ManageGameMode() {
   int returnState = MACHINE_STATE_NORMAL_GAMEPLAY;
-
-  if (GameMode==GAME_MODE_WIZARD) {
-    WizardMode();
-  }
 
   // If the playfield hasn't been validated yet, flash score and player up num
   if (BallFirstSwitchHitTime == 0) {
@@ -1566,6 +1705,18 @@ int NormalGamePlay() {
       SetPlayerLamps((CurrentPlayer + 1), 4);
       PlayerUpLightBlinking = false;
     }
+  }
+
+  if (ResetLeftDropTargetStatusTime && CurrentTime>ResetLeftDropTargetStatusTime) {
+    LeftDropTargetStatus = CheckSequentialSwitches(SW_LEFT_DROP_TARGET_4, 4);
+//    LeftDTBankHitOrder = 0;
+    ResetLeftDropTargetStatusTime = 0;
+  }
+
+  if (ResetRightDropTargetStatusTime && CurrentTime>ResetRightDropTargetStatusTime) {
+    RightDropTargetStatus = CheckSequentialSwitches(SW_RIGHT_DROP_TARGET_4, 4);
+//    RightDTBankHitOrder = 0;
+    ResetRightDropTargetStatusTime = 0;
   }
 
 
@@ -1764,16 +1915,8 @@ int CountdownBonus(boolean curStateChanged) {
 
       // Only give sound & score if this isn't a tilt
       if (NumTiltWarnings <= MaxTiltWarnings) {
-        if (BonusX == 1) {
-          PlaySoundEffect(SOUND_EFFECT_BONUS_COUNT);
-          CurrentScores[CurrentPlayer] += 1000;
-        } else if (BonusX == 2) {
-          PlaySoundEffect(SOUND_EFFECT_2X_BONUS_COUNT);
-          CurrentScores[CurrentPlayer] += 2000;
-        } else if (BonusX > 2) {
-          PlaySoundEffect(SOUND_EFFECT_3X_BONUS_COUNT);
-          CurrentScores[CurrentPlayer] += 3000;
-        }
+        CurrentScores[CurrentPlayer] += ((unsigned long)BonusX)*1000;
+        PlaySoundEffect(SOUND_EFFECT_BONUS_COUNTDOWN_1K + BonusX);
       }
 
       Bonus -= 1;
@@ -1833,56 +1976,6 @@ void CheckHighScores() {
 
 
 
-unsigned long LastWizardTimeReported = 0;
-int WizardMode() {
-  int returnMode = GAME_MODE_WIZARD;
-
-  // Show timer & play sound for Wizard Mode
-  if ((CurrentTime - LastWizardTimeReported) > 250) {
-    unsigned long numSeconds = 1 + (unsigned long)WizardModeTimeLimit - ((CurrentTime - WizardModeStartTime) / 1000);
-    byte offset = ((CurrentTime - WizardModeStartTime) / 250) % 8;
-    if (offset > 4) offset = 8 - offset;
-    unsigned long shift10 = 1;
-    for (int powCount = 0; powCount < offset; powCount++) {
-      shift10 *= 10;
-    }
-
-    if (  (numSeconds > 20 && (offset == 0)) ||
-          (numSeconds > 10 && numSeconds <= 20 && (offset == 0 || offset == 4)) ||
-          (numSeconds <= 10 && (offset % 2) == 0) ) {
-      PlaySoundEffect(SOUND_EFFECT_WIZARD_TIMER);
-    }
-
-    for (int count = 0; count < 4; count++) {
-      if (count != CurrentPlayer) {
-        BSOS_SetDisplay(count, numSeconds * shift10);
-        if (numSeconds < 10) BSOS_SetDisplayBlank(count, 0x20 >> offset);
-        else BSOS_SetDisplayBlank(count, 0x30 >> offset);
-      }
-    }
-    LastWizardTimeReported = CurrentTime;
-  }
-
-  if ((CurrentTime - WizardModeStartTime) > (1000 * (unsigned long)WizardModeTimeLimit)) {
-
-    // Wizard mode is complete - return variables & displays to normal
-
-    for (int count = 0; count < 4; count++) {
-      BSOS_SetDisplay(count, CurrentScores[count]);
-      if (count < CurrentNumPlayers) {
-        if (CurrentScores[count] > 0) BSOS_SetDisplay(count, CurrentScores[count], true, 2);
-        else BSOS_SetDisplayBlank(count, 0x30);
-      }
-      else BSOS_SetDisplayBlank(count, 0x00);
-    }
-
-    PlayBackgroundSong(SOUND_EFFECT_BACKGROUND_1);
-    returnMode = GAME_MODE_SELECT_MODE;
-  }
-
-  return returnMode;
-}
-
 unsigned long MatchSequenceStartTime = 0;
 unsigned long MatchDelay = 150;
 byte MatchDigit = 0;
@@ -1895,7 +1988,8 @@ int ShowMatchSequence(boolean curStateChanged) {
   if (curStateChanged) {
     MatchSequenceStartTime = CurrentTime;
     MatchDelay = 1500;
-    MatchDigit = random(0, 10);
+    //MatchDigit = random(0, 10);
+    MatchDigit = CurrentTime%10;
     NumMatchSpins = 0;
     BSOS_SetLampState(MATCH, 1, 0);
     BSOS_SetDisableFlippers();
@@ -1989,6 +2083,7 @@ boolean CheckIfRightDropTargetsDown() {
             BSOS_ReadSingleSwitchState(SW_RIGHT_DROP_TARGET_4) );
 }
 
+/*
 void HandleLeftDropTarget() {
   // If we're in left-drop target mode, add score and pop them back up
   if (GameMode==GAME_MODE_LEFT_DROP_TARGETS) {
@@ -2036,7 +2131,7 @@ void HandleRightDropTarget() {
     }
   }  
 }
-
+*/
 
 void AddABLandScore() {
   byte aNibble = ABLaneState & 0x0F;
@@ -2083,6 +2178,128 @@ void AddABLaneState(boolean bLaneHit) {
 }
 
 
+byte CheckSequentialSwitches(byte startingSwitch, byte numSwitches) {
+  byte returnSwitches = 0; 
+  for (byte count=0; count<numSwitches; count++) {
+    returnSwitches |= (BSOS_ReadSingleSwitchState(startingSwitch+count)<<count);
+  }
+  return returnSwitches;
+}
+
+
+
+void HandleLeftDropTargetHit(byte switchHit) {
+
+  byte currentStatus = CheckSequentialSwitches(SW_LEFT_DROP_TARGET_4, 4);  
+  boolean frenzyReset = false;
+  boolean awardGiven = false;
+  boolean soundPlayed = false;
+
+  byte targetBit = (1<<(switchHit-SW_LEFT_DROP_TARGET_4));
+  // If this is a legit switch hit (not a repeat)
+  if ( (targetBit & LeftDropTargetStatus)==0 ) {
+
+/*
+    if (LeftDTBankHitOrder==0 && ((currentStatus&0x32)==0x20)) {
+      LeftDTBankHitOrder = 1;
+    } else if (LeftDTBankHitOrder==1) {
+      if ((currentStatus&0x32)==0x22) LeftDTBankHitOrder = 2;
+      else LeftDTBankHitOrder = 0;
+    } else if (LeftDTBankHitOrder==2 && switchHit==SW_DROP_TARGET_3) {
+      StartScoreAnimation(15000);
+      PlaySoundEffect(SOUND_EFFECT_DROP_SEQUENCE_SKILL);
+      soundPlayed = true;
+      awardGiven = true;
+      LeftDTBankHitOrder = 0;
+    }
+*/
+
+/*
+    if (GameMode&GAME_MODE_FLAG_DROP_TARGET_FRENZY) {
+      PlaySoundEffect(SOUND_EFFECT_7K_BONUS);
+      soundPlayed = true;
+      StartScoreAnimation(7000);
+      frenzyReset = true;
+    }
+*/    
+
+    // Default scoring for a drop target
+    if (!awardGiven) {
+      CurrentScores[CurrentPlayer] += 500;
+    }
+
+    LeftDropTargetStatus |= targetBit;
+  }
+
+  // If targets need to be reset
+  boolean bankDown = (currentStatus==0x0F);
+  if (bankDown || frenzyReset) {
+    if (ResetLeftDropTargetStatusTime==0) {
+      unsigned long extraDelay = 0;
+      if (frenzyReset) {
+        extraDelay = 2000;
+      } else {
+//        IncreaseBonusX();
+//        soundPlayed = true;
+//        AddToBonus(2);
+      }
+      BSOS_PushToTimedSolenoidStack(SOL_LEFT_DROP_TARGETS, 12, CurrentTime + 500 + extraDelay);
+      ResetLeftDropTargetStatusTime = CurrentTime + 850 + extraDelay;
+    }
+  }
+
+  if (!soundPlayed) {
+    PlaySoundEffect(SOUND_EFFECT_DROP_TARGET);
+  }
+
+}
+
+
+void HandleRightDropTargetHit(byte switchHit) {
+
+  byte currentStatus = CheckSequentialSwitches(SW_RIGHT_DROP_TARGET_4, 4);  
+  boolean frenzyReset = false;
+  boolean awardGiven = false;
+  boolean soundPlayed = false;
+
+  byte targetBit = (1<<(switchHit-SW_RIGHT_DROP_TARGET_4));
+  // If this is a legit switch hit (not a repeat)
+  if ( (targetBit & RightDropTargetStatus)==0 ) {
+
+    // Default scoring for a drop target
+    if (!awardGiven) {
+      CurrentScores[CurrentPlayer] += 500;
+    }
+
+    RightDropTargetStatus |= targetBit;
+  }
+
+  // If targets need to be reset
+  boolean bankDown = (currentStatus==0x0F);
+  if (bankDown || frenzyReset) {
+    if (ResetRightDropTargetStatusTime==0) {
+      unsigned long extraDelay = 0;
+      if (frenzyReset) {
+        extraDelay = 2000;
+      } else {
+//        IncreaseBonusX();
+//        soundPlayed = true;
+//        AddToBonus(2);
+      }
+      BSOS_PushToTimedSolenoidStack(SOL_RIGHT_DROP_TARGETS, 12, CurrentTime + 500 + extraDelay);
+      ResetRightDropTargetStatusTime = CurrentTime + 850 + extraDelay;
+    }
+  }
+
+  if (!soundPlayed) {
+    PlaySoundEffect(SOUND_EFFECT_DROP_TARGET);
+  }
+
+}
+
+
+
+
 void WizardSwitchHit() {
   CurrentScores[CurrentPlayer] += WizardSwitchReward;
   PlaySoundEffect(SOUND_EFFECT_WIZARD_SCORE);
@@ -2100,14 +2317,13 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
     }
   }
 
-
   // Very first time into gameplay loop
   if (curState == MACHINE_STATE_INIT_GAMEPLAY) {
     returnState = InitGamePlay();
   } else if (curState == MACHINE_STATE_INIT_NEW_BALL) {
     returnState = InitNewBall(curStateChanged, CurrentPlayer, CurrentBallInPlay);
   } else if (curState == MACHINE_STATE_NORMAL_GAMEPLAY) {
-    returnState = NormalGamePlay();  
+    returnState = ManageGameMode();  
   } else if (curState == MACHINE_STATE_COUNTDOWN_BONUS) {
     returnState = CountdownBonus(curStateChanged);
   } else if (curState == MACHINE_STATE_BALL_OVER) {
@@ -2173,7 +2389,7 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         case SW_RIGHT_INLANE:
           if (GameMode != GAME_MODE_WIZARD) {
             CurrentScores[CurrentPlayer] += 500;
-            PlaySoundEffect(SOUND_EFFECT_INLANE_UNLIT);
+            PlaySoundEffect(SOUND_EFFECT_INLANE);
             if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
             if (GameMode == GAME_MODE_SLINGS_AND_LANES && SlingsAndLanesGoal[CurrentPlayer]) {
               SlingsAndLanesGoal[CurrentPlayer] -= 1;
@@ -2267,7 +2483,7 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         case SW_RIGHT_DROP_TARGET_2:
         case SW_RIGHT_DROP_TARGET_3:
         case SW_RIGHT_DROP_TARGET_4:
-          //          HandleDropTargetHit(switchHit, CurrentPlayer);
+          HandleRightDropTargetHit(switchHit);
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
           if (GameMode == GAME_MODE_WIZARD) CurrentScores[CurrentPlayer] += WizardSwitchReward;
           if (GameMode==GAME_MODE_RIGHT_DROP_TARGETS && RightTargetGoal[CurrentPlayer]) {
@@ -2282,7 +2498,7 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
         case SW_LEFT_DROP_TARGET_2:
         case SW_LEFT_DROP_TARGET_3:
         case SW_LEFT_DROP_TARGET_4:
-          //          HandleDropTargetHit(switchHit, CurrentPlayer);
+          HandleLeftDropTargetHit(switchHit);
           if (BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
           if (GameMode == GAME_MODE_WIZARD) CurrentScores[CurrentPlayer] += WizardSwitchReward;
           if (GameMode==GAME_MODE_RIGHT_DROP_TARGETS && LeftTargetGoal[CurrentPlayer]) {
@@ -2305,7 +2521,7 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
           }
           if (GameMode != GAME_MODE_WIZARD) {
             CurrentScores[CurrentPlayer] += 100;
-            PlaySoundEffect(SOUND_EFFECT_BUMPER_HIT);
+            PlaySoundEffect(SOUND_EFFECT_BUMPER);
             if (PlayfieldValidation < 2 && BallFirstSwitchHitTime == 0) BallFirstSwitchHitTime = CurrentTime;
           } else {
             WizardSwitchHit();
