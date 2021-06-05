@@ -2133,7 +2133,7 @@ void HandleRightDropTarget() {
 }
 */
 
-void AddABLandScore() {
+void AddABLaneScore() {
   byte aNibble = ABLaneState & 0x0F;
   byte bNibble = (ABLaneState & 0xF0)>>4;
   byte lowestState = aNibble; 
@@ -2412,7 +2412,8 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
             OverrideScoreDisplay(CurrentPlayer, ABLaneGoal[CurrentPlayer], true);
             AddToBonus(1);
           }
-          AddABLandScore();
+          PlaySoundEffect(SOUND_EFFECT_AB_LANE_1);
+          AddABLaneScore();
           AddABLaneState(false);
           AddToBonus(1);
         break;
@@ -2426,7 +2427,8 @@ int RunGamePlayMode(int curState, boolean curStateChanged) {
             OverrideScoreDisplay(CurrentPlayer, ABLaneGoal[CurrentPlayer], true);
             AddToBonus(1);
           }
-          AddABLandScore();
+          PlaySoundEffect(SOUND_EFFECT_AB_LANE_2);
+          AddABLaneScore();
           AddABLaneState(true);
           AddToBonus(1);
         break;
